@@ -1,0 +1,341 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>方向膠片地圖</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&display=swap">
+<style>
+/* 版面：左邊大地圖（可放「方向膠片」），右邊題目面板；窄屏時上下排列 */
+:root{
+  --paper:#F4F7F2; --panel:#FFFFFF; --ink:#1F2B2A; --muted:#5E706C; --line:#CBD8D0; --soft:#E7EEE8;
+  --ground:#EAF3E6; --road:#E8C682; --roadEdge:#D4AE62; --tile:#FFFFFF;
+  --film:rgba(70,130,230,.12); --filmLine:#3B6FD6; --arrow:#D9480F;
+  --north:#D2392B; --ok:#23925A; --bad:#C63D2C; --accent:#2563D9;
+  --font:"Noto Sans TC","PingFang HK","Microsoft JhengHei",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#11191A; --panel:#1A2526; --ink:#E6EFEC; --muted:#9DB1AC; --line:#34494A; --soft:#22302F;
+  --ground:#182421; --road:#6E5C36; --roadEdge:#8A7445; --tile:#24302F;
+  --film:rgba(110,158,255,.16); --filmLine:#7EA7FF; --arrow:#FF8A4C;
+  --north:#FF6A5A; --ok:#4CC584; --bad:#FF7A66; --accent:#6E9EFF; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#11191A; --panel:#1A2526; --ink:#E6EFEC; --muted:#9DB1AC; --line:#34494A; --soft:#22302F;
+  --ground:#182421; --road:#6E5C36; --roadEdge:#8A7445; --tile:#24302F;
+  --film:rgba(110,158,255,.16); --filmLine:#7EA7FF; --arrow:#FF8A4C;
+  --north:#FF6A5A; --ok:#4CC584; --bad:#FF7A66; --accent:#6E9EFF; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--font);font-size:18px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.app{max-width:1240px;margin:0 auto;padding-block:14px 24px;display:flex;flex-direction:column;gap:12px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;justify-content:space-between}
+h1{font-size:1.6rem;font-weight:900;margin:0}
+h1 small{font-size:.9rem;font-weight:500;color:var(--muted);margin-left:8px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;background:var(--soft);padding:5px;border-radius:14px}
+.tabs button{font:inherit;font-weight:700;font-size:1rem;border:0;background:transparent;color:var(--ink);padding:10px 14px;border-radius:10px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--panel);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.ctrl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-weight:700;font-size:1rem}
+.ctrl button{font:inherit;border:2px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer}
+.ctrl button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--paper)}
+.bar{display:flex;flex-wrap:wrap;gap:10px 22px;justify-content:space-between}
+.stage{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.stage{grid-template-columns:1fr}}
+.mapWrap{background:var(--ground);border-radius:22px;width:100%;max-width:min(100%,92vh);aspect-ratio:730/580;margin:0 auto;position:relative}
+.mapTitle{position:absolute;left:16px;top:12px;font-weight:900;font-size:1.1rem;color:var(--muted)}
+svg{width:100%;height:100%;display:block;touch-action:manipulation}
+.road{stroke:var(--roadEdge);stroke-width:30;stroke-linecap:round}
+.road2{stroke:var(--road);stroke-width:24;stroke-linecap:round}
+.filmC{fill:var(--film);pointer-events:none;stroke:var(--filmLine);stroke-width:2.5}
+.filmL{pointer-events:none;stroke:var(--filmLine);stroke-width:2;stroke-opacity:.75}
+.filmT{pointer-events:none;fill:var(--filmLine);font-family:var(--font);font-weight:900;font-size:17px;text-anchor:middle;dominant-baseline:central;paint-order:stroke;stroke:var(--ground);stroke-width:5px}
+.filmT.n{fill:var(--north)}
+.arw{stroke:var(--arrow);stroke-width:7;stroke-linecap:round;fill:none}
+#ah path{fill:var(--arrow)}
+.place{cursor:pointer}
+.place circle{fill:var(--tile);stroke:var(--line);stroke-width:3}
+.place .em{font-size:38px;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.place .nm{fill:var(--ink);font-family:var(--font);font-weight:900;font-size:21px;text-anchor:middle;dominant-baseline:central;paint-order:stroke;stroke:var(--ground);stroke-width:6px;pointer-events:none}
+.place.ref circle{stroke:var(--filmLine);stroke-width:6}
+.place.pick circle{stroke:var(--ink);stroke-width:6}
+.place.ok circle{stroke:var(--ok);stroke-width:7;fill:color-mix(in srgb,var(--ok) 18%,var(--tile))}
+.place.bad circle{stroke:var(--bad);stroke-width:7;fill:color-mix(in srgb,var(--bad) 16%,var(--tile))}
+.place:focus{outline:none}
+.place:focus-visible circle{stroke:var(--accent);stroke-width:6}
+.nArrow line{stroke:var(--ink);stroke-width:4}
+.nArrow path{fill:var(--ink)}
+.nArrow text{fill:var(--north);font-family:var(--font);font-weight:900;font-size:26px;text-anchor:middle;dominant-baseline:central}
+.walker{font-size:34px;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.eyebrow{font-size:.85rem;font-weight:700;letter-spacing:.08em;color:var(--muted)}
+.q{font-size:1.6rem;font-weight:700;line-height:1.7;text-wrap:balance}
+.q b{font-weight:900;color:var(--accent)}
+.blank{display:inline-block;min-width:3.2em;border-bottom:3px solid var(--ink);text-align:center;color:var(--arrow);font-weight:900}
+.hint{color:var(--muted);font-size:1rem;margin:0;line-height:1.6}
+.note{background:var(--soft);border-radius:12px;padding:12px 14px;font-size:1.05rem;line-height:1.6;margin:0}
+.fb{font-size:1.4rem;font-weight:900;min-height:1.5em;line-height:1.5}
+.fb.ok{color:var(--ok)} .fb.no{color:var(--bad)}
+.score{font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.pad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-width:420px}
+.pad button,.btn{font:inherit;font-weight:900;border:0;border-radius:14px;cursor:pointer}
+.pad button{font-size:1.35rem;min-height:62px;background:var(--soft);color:var(--ink)}
+.pad .mid{background:transparent;cursor:default;color:var(--muted);font-size:1rem}
+.pad button.right{background:var(--ok);color:#fff}
+.pad button.wrong{background:var(--bad);color:#fff}
+.btns{display:flex;flex-wrap:wrap;gap:10px}
+.btn{background:var(--soft);color:var(--ink);font-size:1.05rem;padding:14px 18px}
+.btn.main{background:var(--accent);color:#fff}
+button:disabled{opacity:.55;cursor:default}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.say{font-size:1.5rem;font-weight:900;line-height:1.6}
+.say b{color:var(--arrow)}
+</style>
+
+<div class="app">
+  <header>
+    <h1>方向膠片地圖<small>四年級 · 八個方向</small></h1>
+    <div class="tabs" role="group" aria-label="模式">
+      <button data-mode="demo" aria-pressed="true">示範</button>
+      <button data-mode="dir" aria-pressed="false">在哪個方向？</button>
+      <button data-mode="place" aria-pressed="false">是甚麼地方？</button>
+      <button data-mode="route" aria-pressed="false">路線題</button>
+    </div>
+  </header>
+  <div class="bar">
+    <div class="ctrl" role="group" aria-label="地圖">
+      地圖
+      <button id="mapBtn">樂樂家附近</button>
+    </div>
+    <div class="ctrl" role="group" aria-label="北方位置">
+      北方在
+      <button id="nL" aria-label="北方逆時針移">↺</button>
+      <button id="nUp">上面</button>
+      <button id="nR" aria-label="北方順時針移">↻</button>
+      <button id="nRand" aria-pressed="true">題目隨機轉</button>
+    </div>
+  </div>
+  <main class="stage">
+    <div class="mapWrap">
+      <svg id="map" viewBox="-300 -290 730 580" aria-label="平面圖"></svg>
+    </div>
+    <section class="panel" id="panel" aria-live="polite"></section>
+  </main>
+</div>
+
+<script>
+const NAMES=['北','東北','東','東南','南','西南','西','西北'];
+const SLOT={NW:[-1,1],N:[0,1],NE:[1,1],W:[-1,0],C:[0,0],E:[1,0],SW:[-1,-1],S:[0,-1],SE:[1,-1]};
+const MAPS=[
+ {title:'樂樂家附近',walker:'🧒',places:{NW:['游泳池','🏊'],N:['消防局','🚒'],NE:['醫院','🏥'],W:['超級市場','🛒'],C:['樂樂家','🏠'],E:['學校','🏫'],SW:['郵局','📮'],S:['警署','🚓'],SE:['戲院','🎬']},
+  roads:['NW-N','N-NE','NE-C','N-W','C-SW','W-C','C-S','NW-W','SW-S','S-SE','E-SE','C-E']},
+ {title:'海濱公園',walker:'👧',places:{NW:['碼頭','⛵'],N:['摩天輪','🎡'],NE:['雪糕店','🍦'],W:['沙灘','🏖️'],C:['噴水池','⛲'],E:['樹林','🌳'],SW:['水族館','🐠'],S:['表演場','🎪'],SE:['野餐區','🧺']},
+  roads:['NW-N','N-NE','NW-C','NE-E','C-E','C-SW','SW-S','S-SE','E-S','W-SW','N-C']},
+ {title:'校園',walker:'🧑‍🎓',places:{NW:['籃球場','🏀'],N:['圖書館','📚'],NE:['音樂室','🎵'],W:['小食部','🍱'],C:['操場','🚩'],E:['電腦室','💻'],SW:['醫療室','🩹'],S:['校門','🚪'],SE:['視藝室','🎨']},
+  roads:['N-C','C-S','W-C','NW-W','NE-N','N-E','E-SE','SW-W','SW-C','S-SE','C-SE','NW-N']},
+];
+const U=168, NS='http://www.w3.org/2000/svg';
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=s=>document.querySelector(s), svg=$('#map'), panel=$('#panel');
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const sleep=ms=>new Promise(r=>setTimeout(r,reduce?Math.min(ms,200):ms));
+
+let mapI=0, theta=0, randN=true, mode='demo', busy=false;
+let film=null, arrows=[], hl={}, walker=null, q=null, score={ok:0,total:0}, demo={a:null,b:null};
+const M=()=>MAPS[mapI];
+const keys=()=>Object.keys(SLOT);
+const nm=k=>M().places[k][0];
+const hasRoad=(a,b)=>M().roads.includes(a+'-'+b)||M().roads.includes(b+'-'+a);
+
+// 格坐標（x 向東，y 向北）→ 畫面坐標
+function scr(x,y){return [U*x,-U*y]}   // 地圖固定不轉，只轉北方標誌
+function vec(deg,r){const a=(theta+deg)*Math.PI/180;return [r*Math.sin(a),-r*Math.cos(a)]}
+function dirOf(a,b){const [x1,y1]=SLOT[a],[x2,y2]=SLOT[b],dx=x2-x1,dy=y2-y1;
+  if(!(dx||dy))return -1; if(dx&&dy&&Math.abs(dx)!==Math.abs(dy))return -1;
+  return ((Math.round(Math.atan2(dx,dy)/(Math.PI/4)-theta/45)%8)+8)%8}
+const northWord=o=>['上面','右上','右面','右下','下面','左下','左面','左上'][((Math.round(o/45))%8+8)%8];
+
+// ---------- 繪圖 ----------
+function render(){
+  let h=`<defs><marker id="ah" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="3.6" markerHeight="3.6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z"></path></marker></defs>`;
+  // 道路
+  M().roads.forEach(r=>{const [a,b]=r.split('-'),p=scr(...SLOT[a]),q2=scr(...SLOT[b]);
+    h+=`<line class="road" x1="${p[0]}" y1="${p[1]}" x2="${q2[0]}" y2="${q2[1]}"></line>`});
+  M().roads.forEach(r=>{const [a,b]=r.split('-'),p=scr(...SLOT[a]),q2=scr(...SLOT[b]);
+    h+=`<line class="road2" x1="${p[0]}" y1="${p[1]}" x2="${q2[0]}" y2="${q2[1]}"></line>`});
+  // 箭咀
+  arrows.forEach(([a,b])=>{const p=scr(...SLOT[a]),q2=scr(...SLOT[b]),dx=q2[0]-p[0],dy=q2[1]-p[1],L=Math.hypot(dx,dy);
+    const s=46/L,e=(L-58)/L;
+    h+=`<line class="arw" x1="${p[0]+dx*s}" y1="${p[1]+dy*s}" x2="${p[0]+dx*e}" y2="${p[1]+dy*e}" marker-end="url(#ah)"></line>`});
+  // 地方
+  keys().forEach(k=>{const [x,y]=scr(...SLOT[k]),[n,em]=M().places[k];
+    h+=`<g class="place ${hl[k]||''}" data-k="${k}" tabindex="0" role="button" aria-label="${n}">
+      <circle cx="${x}" cy="${y}" r="38"></circle><text class="em" x="${x}" y="${y+2}">${em}</text>
+      <text class="nm" x="${x}" y="${y+56}">${n}</text></g>`});
+  // 方向膠片
+  if(film){const [cx,cy]=scr(...(typeof film==='string'?SLOT[film]:film));
+    h+=`<g><circle class="filmC" cx="${cx}" cy="${cy}" r="104"></circle>`;
+    for(let d=0;d<8;d++){const [ex,ey]=vec(d*45,104),[sx,sy]=vec(d*45,40);
+      h+=`<line class="filmL" x1="${cx+sx}" y1="${cy+sy}" x2="${cx+ex}" y2="${cy+ey}"></line>`}
+    for(let d=0;d<8;d++){const [tx,ty]=vec(d*45,79);
+      h+=`<text class="filmT${d===0?' n':''}" x="${cx+tx}" y="${cy+ty}">${NAMES[d]}</text>`}
+    h+='</g>';}
+  // 人物
+  if(walker){const [x,y]=scr(...walker);h+=`<text class="walker" x="${x+26}" y="${y-34}">${M().walker}</text>`}
+  // 北方箭咀
+  const nx=348,ny=-196,[ax,ay]=vec(0,34),[bx,by]=vec(90,18);
+  h+=`<g class="nArrow"><line x1="${nx-ax}" y1="${ny-ay}" x2="${nx+ax}" y2="${ny+ay}"></line>
+    <line x1="${nx-bx}" y1="${ny-by}" x2="${nx+bx}" y2="${ny+by}"></line>
+    <path d="M${nx+ax*1.45},${ny+ay*1.45} L${nx+ax*.85+bx*.55},${ny+ay*.85+by*.55} L${nx+ax*.85-bx*.55},${ny+ay*.85-by*.55} Z"></path>
+    <text x="${nx+ax*1.72}" y="${ny+ay*1.72}">北</text></g>`;
+  svg.innerHTML=h;
+}
+function tween(ms,f){return new Promise(res=>{if(reduce){f(1);return res()}
+  const t0=performance.now();const tick=t=>{const k=Math.min(1,(t-t0)/ms),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;f(e);if(k<1)requestAnimationFrame(tick);else res()};requestAnimationFrame(tick)})}
+async function setNorth(target,instant){
+  const from=theta; $('#nUp').textContent=northWord(target);
+  if(instant){theta=target;render();return}
+  await tween(650,e=>{theta=from+(target-from)*e;render()});
+}
+async function walk(a,b){
+  const [x1,y1]=SLOT[a],[x2,y2]=SLOT[b];
+  await tween(900,e=>{walker=[x1+(x2-x1)*e,y1+(y2-y1)*e];render()});
+}
+function reset(){film=null;arrows=[];hl={};walker=null}
+const northTip=()=>((theta%360)+360)%360===0?'':`<p class="note">留意：這幅圖的北方在<b>${northWord(theta)}</b>。先看北方箭咀，再找方向。</p>`;
+
+// ---------- 示範 ----------
+function renderDemo(msg=''){
+  panel.innerHTML=`
+    <div class="eyebrow">示範 · 方向膠片</div>
+    <p class="hint" style="font-size:1.1rem">① 點一個地方，放上「方向膠片」。<br>② 再點另一個地方，看看它在哪個方向。</p>
+    ${northTip()}
+    <div class="say">${msg}</div>
+    <div class="btns"><button class="btn" data-act="clear">清除膠片</button></div>`;
+}
+async function demoTap(k){
+  if(!demo.a||demo.b||k===demo.a){
+    reset();demo={a:k,b:null};film=k;hl[k]='ref';render();
+    renderDemo(`方向膠片放在 <b style="color:var(--filmLine)">${nm(k)}</b>。<br>膠片上的「北」要對準地圖的北方。`);return;
+  }
+  const a=demo.a,d=dirOf(a,k);demo.b=k;
+  if(d<0){hl[k]='bad';render();renderDemo(`${nm(k)} 不在 ${nm(a)} 的八個方向上。<br>試試另一個地方。`);demo.b=null;setTimeout(()=>{delete hl[k];render()},900);return}
+  hl[k]='ok';arrows=[[a,k]];render();
+  renderDemo(`<b style="color:var(--ink)">${nm(k)}</b> 在 ${nm(a)} 的 <b>${NAMES[d]}方</b>。`);
+  if(hasRoad(a,k)){busy=true;await walk(a,k);busy=false;
+    renderDemo(`<b style="color:var(--ink)">${nm(k)}</b> 在 ${nm(a)} 的 <b>${NAMES[d]}方</b>。<br><span style="font-size:1.15rem">由${nm(a)}向${NAMES[d]}方走，便可到達${nm(k)}。</span>`)}
+  demo={a:null,b:null};
+}
+
+// ---------- 出題 ----------
+let qn={dir:0,place:0,route:0}, keepN=false;
+// 每個題型的頭兩題只考東南西北（引入），之後大約八成考東北、東南、西南、西北
+async function prepQ(){reset();const n=qn[mode]++;const diag=n<2?false:Math.random()<.8;
+  if(keepN)keepN=false;
+  else if(randN){const t=n<2?0:(Math.random()<.3?0:pick([45,90,135,180,225,270,315]));await setNorth(t,true)}
+  render();return diag}
+const filt=(a,f)=>{const b=a.filter(f);return b.length?b:a};
+const pad=(ans,picked,done)=>`<div class="pad">${[7,0,1,6,-1,2,5,4,3].map(d=>d<0?'<button class="mid" disabled data-lock="1">（選方向）</button>':
+  `<button data-act="dir" data-d="${d}" ${done?'disabled data-lock="1"':''} class="${done&&d===ans?'right':done&&d===picked?'wrong':''}">${NAMES[d]}</button>`).join('')}</div>`;
+const footer=done=>`<div class="btns">${done?'<button class="btn" data-act="replay">再看一次</button>':''}<button class="btn main" data-act="next">${done?'下一題':'換一題'}</button></div>`;
+const head=()=>`<div class="score">答對 ${score.ok} / ${score.total}</div>`;
+
+async function newDir(){
+  const diag=await prepQ(),ks=keys(),pairs=[];
+  ks.forEach(a=>ks.forEach(b=>{if(a!==b&&dirOf(b,a)>=0)pairs.push([a,b])}));
+  const [x,y]=pick(filt(pairs,([x,y])=>dirOf(y,x)%2===(diag?1:0)));
+  q={t:'dir',x,y,ans:dirOf(y,x),done:false};hl[y]='ref';render();showDir();
+}
+function showDir(fb={}){
+  panel.innerHTML=`${head()}<div class="q"><b>${nm(q.x)}</b> 在 <b>${nm(q.y)}</b> 的 <span class="blank">${q.done?NAMES[q.ans]:'？'}</span> 方。</div>
+    ${northTip()}${pad(q.ans,q.picked,q.done)}<div class="fb ${fb.c||''}">${fb.t||''}</div>${footer(q.done)}`;
+}
+async function revealDir(){film=q.y;hl={[q.y]:'ref',[q.x]:'ok'};arrows=[];render();await sleep(700);arrows=[[q.y,q.x]];render()}
+
+async function newPlace(){
+  const diag=await prepQ(),ks=keys(),opts=[];
+  ks.forEach(y=>{for(let d=0;d<8;d++){const hit=ks.filter(k=>k!==y&&dirOf(y,k)===d);if(hit.length===1)opts.push([y,d,hit[0]])}});
+  const [y,d,a]=pick(filt(opts,o=>o[1]%2===(diag?1:0)));q={t:'place',y,d,ans:a,done:false};hl[y]='ref';render();showPlace();
+}
+function showPlace(fb={}){
+  panel.innerHTML=`${head()}<div class="q"><span class="blank">${q.done?nm(q.ans):'？'}</span> 在 <b>${nm(q.y)}</b> 的 <b>${NAMES[q.d]}方</b>。</div>
+    ${northTip()}<p class="hint">${q.done?'':'在地圖上點選答案。'}</p><div class="fb ${fb.c||''}">${fb.t||''}</div>${footer(q.done)}`;
+}
+async function revealPlace(){film=q.y;hl[q.y]='ref';hl[q.ans]='ok';arrows=[];render();await sleep(700);arrows=[[q.y,q.ans]];render()}
+
+async function newRoute(){
+  const diag=await prepQ(),ks=keys(),paths=[];
+  ks.forEach(a=>ks.forEach(b=>ks.forEach(c=>{if(a!==b&&b!==c&&a!==c&&hasRoad(a,b)&&hasRoad(b,c))paths.push([a,b,c])})));
+  const [a,b,c]=pick(filt(paths,([a,b,c])=>diag?(dirOf(a,b)%2||dirOf(b,c)%2):!(dirOf(a,b)%2||dirOf(b,c)%2)));
+  q={t:'route',a,b,c,d1:dirOf(a,b),d2:dirOf(b,c),ask:pick(['d2','d2','d1','b']),done:false};
+  hl[a]='ref';walker=SLOT[a];render();showRoute();
+}
+function showRoute(fb={}){
+  const B=x=>`<span class="blank">${x}</span>`;
+  const d1=q.ask==='d1'?B(q.done?NAMES[q.d1]:'？'):`<b>${NAMES[q.d1]}</b>`;
+  const d2=q.ask==='d2'?B(q.done?NAMES[q.d2]:'？'):`<b>${NAMES[q.d2]}</b>`;
+  const mid=q.ask==='b'?B(q.done?nm(q.b):'？'):`<b>${nm(q.b)}</b>`;
+  const ans=q.ask==='d1'?q.d1:q.d2;
+  panel.innerHTML=`${head()}<div class="q">由 <b>${nm(q.a)}</b> 向 ${d1} 方走，到達 ${mid}，再向 ${d2} 方走，便可到達 <b>${nm(q.c)}</b>。</div>
+    ${northTip()}${q.ask==='b'?`<p class="hint">${q.done?'':'在地圖上點選答案。'}</p>`:pad(ans,q.picked,q.done)}
+    <div class="fb ${fb.c||''}">${fb.t||''}</div>${footer(q.done)}`;
+}
+async function revealRoute(){
+  reset();hl[q.a]='ref';film=q.a;render();await sleep(600);
+  arrows=[[q.a,q.b]];render();await walk(q.a,q.b);hl[q.b]='ref';await sleep(300);
+  film=q.b;walker=null;render();await sleep(600);arrows.push([q.b,q.c]);render();await walk(q.b,q.c);hl[q.c]='ok';render();
+}
+
+async function answer(v){
+  if(!q||q.done||busy)return;
+  q.done=true;q.picked=v;score.total++;
+  let ok,txt;
+  if(q.t==='dir'){ok=v===q.ans;txt=`${nm(q.x)}在${nm(q.y)}的${NAMES[q.ans]}方。`}
+  else if(q.t==='place'){ok=v===q.ans;txt=`${nm(q.ans)}在${nm(q.y)}的${NAMES[q.d]}方。`;if(!ok)hl[v]='bad'}
+  else{const a=q.ask==='b'?q.b:q.ask==='d1'?q.d1:q.d2;ok=v===a;txt=q.ask==='b'?`中途到達的是${nm(q.b)}。`:`答案是${NAMES[a]}方。`}
+  if(ok)score.ok++;
+  busy=true;lock(true);
+  const show=fb=>q.t==='dir'?showDir(fb):q.t==='place'?showPlace(fb):showRoute(fb);
+  show({t:'用方向膠片看看……'});lock(true);
+  const badK=q.t!=='dir'&&!ok&&typeof v==='string'?v:null;
+  if(q.t==='dir')await revealDir();else if(q.t==='place')await revealPlace();else await revealRoute();
+  if(badK){hl[badK]='bad';render()}
+  busy=false;
+  show(ok?{c:'ok',t:'正確！'+txt}:{c:'no',t:'再想想：'+txt});
+}
+function lock(v){panel.querySelectorAll('button').forEach(b=>{if(!b.dataset.lock)b.disabled=v})}
+async function replay(){if(busy)return;busy=true;lock(true);
+  if(q.t==='dir'){reset();render();await revealDir()}else if(q.t==='place'){reset();render();await revealPlace()}else await revealRoute();
+  busy=false;lock(false)}
+
+// ---------- 事件 ----------
+svg.addEventListener('click',e=>{const g=e.target.closest('.place');if(g)tap(g.dataset.k)});
+svg.addEventListener('keydown',e=>{const g=e.target.closest('.place');if(g&&(e.key==='Enter'||e.key===' ')){e.preventDefault();tap(g.dataset.k)}});
+function tap(k){if(busy)return;
+  if(mode==='demo')demoTap(k);
+  else if(q&&!q.done&&(q.t==='place'||(q.t==='route'&&q.ask==='b'))){hl[k]='pick';render();answer(k)}
+}
+panel.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||busy||b.disabled)return;
+  const a=b.dataset.act;
+  if(a==='dir')answer(+b.dataset.d);
+  else if(a==='next')newQ();
+  else if(a==='replay')replay();
+  else if(a==='clear'){reset();demo={a:null,b:null};render();renderDemo()}
+});
+function newQ(){if(mode==='dir')newDir();else if(mode==='place')newPlace();else if(mode==='route')newRoute()}
+function setMode(m){mode=m;q=null;demo={a:null,b:null};reset();render();
+  document.querySelectorAll('.tabs button').forEach(t=>t.setAttribute('aria-pressed',t.dataset.mode===m));
+  if(m==='demo')renderDemo();else newQ()}
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{if(!busy){qn={dir:0,place:0,route:0};setMode(b.dataset.mode)}});
+$('#mapBtn').onclick=()=>{if(busy)return;mapI=(mapI+1)%MAPS.length;$('#mapBtn').textContent=M().title;setMode(mode)};
+async function moveN(t){if(busy)return;busy=true;await setNorth(t);busy=false;
+  if(mode==='demo'){arrows=[];walker=null;hl=demo.a?{[demo.a]:'ref'}:{};demo.b=null;render();
+    renderDemo(demo.a?`北方轉了，膠片也要跟着轉，對準新的北方。<br>再點另一個地方試試看。`:'')}
+  else{keepN=true;newQ()}}
+$('#nL').onclick=()=>moveN(theta-45);
+$('#nR').onclick=()=>moveN(theta+45);
+$('#nUp').onclick=()=>moveN(Math.round(theta/360)*360);
+$('#nRand').onclick=()=>{randN=!randN;$('#nRand').setAttribute('aria-pressed',randN)};
+
+// 開始：示範模式，北方在右上，膠片放在樂樂家
+theta=45;$('#nUp').textContent=northWord(theta);
+render();renderDemo();demoTap('C');
+</script>
+
+</body></html>
